@@ -1,3 +1,4 @@
 sesd
 pandas
 fastapi[all]
+uvicorn

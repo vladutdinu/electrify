@@ -4,6 +4,7 @@ import numpy as np
 from fastapi import FastAPI, HTTPException
 from typing import Optional
 from datetime import datetime
+import uvicorn
 
 app = FastAPI()
 
@@ -29,4 +30,4 @@ async def get_readings(meter_id: int, start: Optional[str] = None, end: Optional
     return filtered_df.to_dict(orient='records')
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    uvicorn.run(app, host='0.0.0.0', port=8000, reload=True)
