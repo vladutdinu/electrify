@@ -5,8 +5,21 @@ from fastapi import FastAPI, HTTPException
 from typing import Optional
 from datetime import datetime
 import uvicorn
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+origins = [
+    "*",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Load your dataset here
 df = pd.read_csv('dataset.csv', parse_dates=['timestamp'])[["meter","timestamp","meter_reading_scaled"]]
@@ -14,6 +27,8 @@ df = pd.read_csv('dataset.csv', parse_dates=['timestamp'])[["meter","timestamp",
 df['month'] = df['timestamp'].dt.month
 df['quarter'] = df['timestamp'].dt.quarter
 df['month_name'] = df['timestamp'].dt.month_name()
+
+
 
 @app.get("/readings/{meter_id}")
 async def get_readings(meter_id: int, start: Optional[str] = None, end: Optional[str] = None):
@@ -36,8 +51,34 @@ async def get_readings(meter_id: int, start: Optional[str] = None, end: Optional
 @app.get("/read/line")
 async def line_chart_data():
     # Grouping by 'meter' to get readings for each room
-    line_chart_data = df.groupby('meter')['meter_reading_scaled'].apply(list).to_dict()
-    return line_chart_data
+    outliers_indices_1 = sesd.seasonal_esd(df[df["meter"]==1]["meter_reading_scaled"].values/100, periodicity = 30,  max_anomalies=len(df[df["meter"]==1]["meter_reading_scaled"].values)//8, alpha = 3)
+    outliers_indices_3 = sesd.seasonal_esd(df[df["meter"]==3]["meter_reading_scaled"].values/100, periodicity = 30,  max_anomalies=len(df[df["meter"]==3]["meter_reading_scaled"].values)//8, alpha = 3)
+
+    marks_1=[]
+    data = df[df["meter"]==1]["meter_reading_scaled"].values/100
+    for i in range(len(data)):
+        if i in outliers_indices_1:
+            marks_1.append(data[i])
+
+    marks_3=[]
+    data = df[df["meter"]==3]["meter_reading_scaled"].values/100
+    for i in range(len(data)):
+        if i in outliers_indices_3:
+            marks_3.append(data[i])
+
+    th = [np.average(marks_1), np.average(marks_3)]
+    line_chart_data = df.groupby('meter')['meter_reading_scaled'].apply(list)
+    data = {
+        "1" : {
+            "consumption": line_chart_data[1],
+            "threshold": [th[0] for x in range(len(th))]
+        },
+        "3" : {
+            "consumption": line_chart_data[3],
+            "threshold":  [th[1] for x in range(len(th))]
+        }
+    }
+    return data
 
 @app.get("/read/bar")
 async def bar_chart_data():
