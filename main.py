@@ -51,35 +51,37 @@ async def get_readings(meter_id: int, start: Optional[str] = None, end: Optional
 @app.get("/read/line")
 async def line_chart_data():
     # Grouping by 'meter' to get readings for each room
-    df = df.groupby(['meter', 'day'])['meter_reading_scaled'].sum().reset_index()
-    outliers_indices_1 = sesd.seasonal_esd(df[df["meter"]==1]["meter_reading_scaled"].values, periodicity = 30,  max_anomalies=len(df[df["meter"]==1]["meter_reading_scaled"].values)//8, alpha = 3)
-    outliers_indices_3 = sesd.seasonal_esd(df[df["meter"]==3]["meter_reading_scaled"].values, periodicity = 30,  max_anomalies=len(df[df["meter"]==3]["meter_reading_scaled"].values)//8, alpha = 3)
+    
+    df1 = df.groupby(['meter', 'day'])['meter_reading_scaled'].sum().reset_index()
+    outliers_indices_1 = sesd.seasonal_esd(df1[df1["meter"]==1]["meter_reading_scaled"].values, periodicity = 30,  max_anomalies=len(df1[df1["meter"]==1]["meter_reading_scaled"].values)//8, alpha = 3)
+    outliers_indices_3 = sesd.seasonal_esd(df1[df1["meter"]==3]["meter_reading_scaled"].values, periodicity = 30,  max_anomalies=len(df1[df1["meter"]==3]["meter_reading_scaled"].values)//8, alpha = 3)
 
     marks_1=[]
-    data = df[df["meter"]==1]["meter_reading_scaled"].values
+    data = df1[df1["meter"]==1]["meter_reading_scaled"].values
     for i in range(len(data)):
         if i in outliers_indices_1:
             marks_1.append(data[i])
 
     marks_3=[]
-    data = df[df["meter"]==3]["meter_reading_scaled"].values
+    data = df1[df1["meter"]==3]["meter_reading_scaled"].values
     for i in range(len(data)):
         if i in outliers_indices_3:
             marks_3.append(data[i])
 
     th = [np.average(marks_1), np.average(marks_3)]
-    data = [{
-        "id": 1,
-            "consumption": df[df['meter'] == 1],
-            "threshold": [th[0] for x in range(len(df[df['meter'] == 1]))]
+    json_data = [
+        {
+            "id": 1,
+            "consumption": df1[df1['meter'] == 1]["meter_reading_scaled"].tolist(),
+            "threshold": [th[0] for x in range(len(df1[df1['meter'] == 1]["meter_reading_scaled"]))]
         },
         {
             "id": 3,
-            "consumption": df[df['meter'] == 3],
-            "threshold":  [th[1] for x in range(len(df[df['meter'] == 3]))]
+            "consumption": df1[df1['meter'] == 3]["meter_reading_scaled"].tolist(),
+            "threshold":  [th[1] for x in range(len(df1[df1['meter'] == 3]["meter_reading_scaled"]))]
         }
     ]
-    return data
+    return json_data
 
 @app.get("/read/bar")
 async def bar_chart_data():
