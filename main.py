@@ -29,13 +29,13 @@ async def get_readings(meter_id: int, start: Optional[str] = None, end: Optional
     # Convert the filtered DataFrame to a dictionary and return it
     return filtered_df.to_dict(orient='records')
 
-@app.get("/readings/line")
+@app.get("/read/line")
 async def line_chart_data():
     # Grouping by 'meter' to get readings for each room
     line_chart_data = df.groupby('meter')['meter_reading_scaled'].apply(list).to_dict()
     return line_chart_data
 
-@app.get("/readings/bar")
+@app.get("/read/bar")
 async def bar_chart_data():
     # Summing up readings by month
     monthly_sum = df.groupby(df['timestamp'].dt.to_period("M"))['meter_reading_scaled'].sum().reset_index()
@@ -43,7 +43,7 @@ async def bar_chart_data():
     bar_data = monthly_sum[['month', 'meter_reading_scaled']].to_dict(orient='records')
     return bar_data
 
-@app.get("/readings/pie")
+@app.get("/read/pie")
 async def pie_chart_data():
     # Summing up readings by quarter
     quarter_sum = df.groupby('quarter')['meter_reading_scaled'].sum()
@@ -57,7 +57,7 @@ async def pie_chart_data():
     }
     return pie_data
 
-@app.get("/readings/notification")
+@app.get("/read/notification")
 async def notif():
     # Summing up readings by quarter
     notifs = [
