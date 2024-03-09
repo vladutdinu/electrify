@@ -27,3 +27,6 @@ async def get_readings(meter_id: int, start: Optional[str] = None, end: Optional
 
     # Convert the filtered DataFrame to a dictionary and return it
     return filtered_df.to_dict(orient='records')
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=8000)
