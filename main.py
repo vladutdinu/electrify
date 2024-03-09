@@ -9,7 +9,11 @@ import uvicorn
 app = FastAPI()
 
 # Load your dataset here
-df = pd.read_csv('dataset.csv')[["meter","timestamp","meter_reading_scaled"]]
+df = pd.read_csv('dataset.csv', parse_dates=['timestamp'])[["meter","timestamp","meter_reading_scaled"]]
+
+df['month'] = df['timestamp'].dt.month
+df['quarter'] = df['timestamp'].dt.quarter
+df['month_name'] = df['timestamp'].dt.month_name()
 
 @app.get("/readings/{meter_id}")
 async def get_readings(meter_id: int, start: Optional[str] = None, end: Optional[str] = None):
@@ -38,10 +42,13 @@ async def line_chart_data():
 @app.get("/read/bar")
 async def bar_chart_data():
     # Summing up readings by month
-    monthly_sum = df.groupby(df['timestamp'].dt.to_period("M"))['meter_reading_scaled'].sum().reset_index()
-    monthly_sum['month'] = monthly_sum['timestamp'].dt.strftime('%Y-%m')
-    bar_data = monthly_sum[['month', 'meter_reading_scaled']].to_dict(orient='records')
-    return bar_data
+    monthly_sum = df.groupby(df['month_name'])['meter_reading_scaled'].sum().reset_index()
+    bar_data = monthly_sum[['month_name', 'meter_reading_scaled']].to_dict(orient='records')
+    data = {
+        "consumption": monthly_sum['meter_reading_scaled'].to_list(),
+        "months": monthly_sum['month_name'].to_list()
+    }
+    return data
 
 @app.get("/read/pie")
 async def pie_chart_data():
@@ -51,9 +58,9 @@ async def pie_chart_data():
     # Calculating the percentage of each quarter
     quarter_percentage = (quarter_sum / total * 100).round(2)
     pie_data = {
-        "quarters": quarter_sum.index.tolist(),
-        "consumption": quarter_sum.values.tolist(),
-        "percentages": quarter_percentage.values.tolist()
+        "quarters": ["Q"+str(i) for i in quarter_sum.index.tolist()],
+        "quartersConsumption": quarter_sum.values.tolist(),
+        "quartersPercentages": quarter_percentage.values.tolist()
     }
     return pie_data
 
