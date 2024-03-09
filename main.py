@@ -71,7 +71,7 @@ async def line_chart_data():
     data = [{
         "id": 1,
             "consumption": df[df['meter'] == 1],
-            "threshold": [th[0] for x in range(len(df[df['meter'] == 1))]
+            "threshold": [th[0] for x in range(len(df[df['meter'] == 1]))]
         },
         {
             "id": 3,
