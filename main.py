@@ -23,7 +23,7 @@ app.add_middleware(
 
 # Load your dataset here
 df = pd.read_csv('dataset.csv', parse_dates=['timestamp'])[["meter","timestamp","meter_reading_scaled"]]
-
+df['day'] = df['timestamp'].dt.date
 df['month'] = df['timestamp'].dt.month
 df['quarter'] = df['timestamp'].dt.quarter
 df['month_name'] = df['timestamp'].dt.month_name()
@@ -46,38 +46,39 @@ async def get_readings(meter_id: int, start: Optional[str] = None, end: Optional
         raise HTTPException(status_code=404, detail=f"No readings found for meter {meter_id} with the provided timeframe.")
 
     # Convert the filtered DataFrame to a dictionary and return it
-    return filtered_df.to_dict(orient='records')
+    return filtered_df.groupby(filtered_df['timestamp'].dt.to_period("d")).to_dict(orient='records')
 
 @app.get("/read/line")
 async def line_chart_data():
     # Grouping by 'meter' to get readings for each room
-    outliers_indices_1 = sesd.seasonal_esd(df[df["meter"]==1]["meter_reading_scaled"].values/100, periodicity = 30,  max_anomalies=len(df[df["meter"]==1]["meter_reading_scaled"].values)//8, alpha = 3)
-    outliers_indices_3 = sesd.seasonal_esd(df[df["meter"]==3]["meter_reading_scaled"].values/100, periodicity = 30,  max_anomalies=len(df[df["meter"]==3]["meter_reading_scaled"].values)//8, alpha = 3)
+    df = df.groupby(['meter', 'day'])['meter_reading_scaled'].sum().reset_index()
+    outliers_indices_1 = sesd.seasonal_esd(df[df["meter"]==1]["meter_reading_scaled"].values, periodicity = 30,  max_anomalies=len(df[df["meter"]==1]["meter_reading_scaled"].values)//8, alpha = 3)
+    outliers_indices_3 = sesd.seasonal_esd(df[df["meter"]==3]["meter_reading_scaled"].values, periodicity = 30,  max_anomalies=len(df[df["meter"]==3]["meter_reading_scaled"].values)//8, alpha = 3)
 
     marks_1=[]
-    data = df[df["meter"]==1]["meter_reading_scaled"].values/100
+    data = df[df["meter"]==1]["meter_reading_scaled"].values
     for i in range(len(data)):
         if i in outliers_indices_1:
             marks_1.append(data[i])
 
     marks_3=[]
-    data = df[df["meter"]==3]["meter_reading_scaled"].values/100
+    data = df[df["meter"]==3]["meter_reading_scaled"].values
     for i in range(len(data)):
         if i in outliers_indices_3:
             marks_3.append(data[i])
 
     th = [np.average(marks_1), np.average(marks_3)]
-    line_chart_data = df.groupby('meter')['meter_reading_scaled'].apply(list)
-    data = {
-        "1" : {
-            "consumption": line_chart_data[1],
-            "threshold": [th[0] for x in range(len(th))]
+    data = [{
+        "id": 1,
+            "consumption": df[df['meter'] == 1],
+            "threshold": [th[0] for x in range(len(df[df['meter'] == 1))]
         },
-        "3" : {
-            "consumption": line_chart_data[3],
-            "threshold":  [th[1] for x in range(len(th))]
+        {
+            "id": 3,
+            "consumption": df[df['meter'] == 3],
+            "threshold":  [th[1] for x in range(len(df[df['meter'] == 3]))]
         }
-    }
+    ]
     return data
 
 @app.get("/read/bar")
@@ -86,7 +87,7 @@ async def bar_chart_data():
     monthly_sum = df.groupby(df['month_name'])['meter_reading_scaled'].sum().reset_index()
     bar_data = monthly_sum[['month_name', 'meter_reading_scaled']].to_dict(orient='records')
     data = {
-        "consumption": monthly_sum['meter_reading_scaled'].to_list(),
+        "consumption": monthly_sum['meter_reading_scaled'].to_list()/100,
         "months": monthly_sum['month_name'].to_list()
     }
     return data
@@ -112,14 +113,14 @@ async def notif():
         {
             "id": 1,
             "title" : "High consumption detected!",
-            "type": "error",
+            "type": "ERROR",
             "message" : "Be aware of high energy consumption in Room 1",
             "content": ["There was a spike in the energy consumption in Room 1 in the past hour.", "Please verify the pluged in devices.", "If this is happening more frequently, please check the devices and find the ones which are causing the problems!", "Take in consideration that they might be old and need replaced."]
         },
         {
             "id": 2,
             "title" : "Devices that can be replaced",
-            "type": "info",
+            "type": "INFO",
             "message" : "Here are a list of devices that can be replaced in Room 1",
             "content": ["The TV, it appears it is an old model with the energy class G, you can find a new model with a better energy efficency", 
                         "The lightbulbs, it seems that you are still using old ones, consider replacing it with LED ones"]
@@ -127,6 +128,7 @@ async def notif():
         {
             "id": 3,
             "title" : "Montly consumption over the average in Room 2",
+            "type": "WARNING",
             "message" : "Your energy consumption on Room 2 this month has passed the average of the last 6 months",
             "content": ["It looks like your monthly energy consumption on Room 2 passed the average of the last months.", "Please be aware of this event and take action!"]
         }
