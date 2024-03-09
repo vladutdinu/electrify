@@ -87,7 +87,7 @@ async def bar_chart_data():
     monthly_sum = df.groupby(df['month_name'])['meter_reading_scaled'].sum().reset_index()
     bar_data = monthly_sum[['month_name', 'meter_reading_scaled']].to_dict(orient='records')
     data = {
-        "consumption": monthly_sum['meter_reading_scaled'].to_list()/100,
+        "consumption": monthly_sum['meter_reading_scaled'].apply(lambda x: x/100).to_list(),
         "months": monthly_sum['month_name'].to_list()
     }
     return data
