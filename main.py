@@ -129,10 +129,10 @@ async def notif():
         },
         {
             "id": 3,
-            "title" : "Montly consumption over the average in Room 2",
+            "title" : "Montly consumption over the average in Room 1",
             "type": "WARNING",
-            "message" : "Your energy consumption on Room 2 this month has passed the average of the last 6 months",
-            "content": ["It looks like your monthly energy consumption on Room 2 passed the average of the last months.", "Please be aware of this event and take action!"]
+            "message" : "Your energy consumption on Room 1 this month has passed the average of the last 6 months",
+            "content": ["It looks like your monthly energy consumption on Room 1 passed the average of the last months.", "Please be aware of this event and take action!"]
         }
     ]
     return notifs
